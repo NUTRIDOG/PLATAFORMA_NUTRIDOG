@@ -15,7 +15,7 @@ export default function OfferBundle({ offer, purchase = null, wompi = {}, seo = 
     const giftBooks = Array.isArray(offer?.giftBooks) ? offer.giftBooks : [];
     const allBooks = Array.isArray(offer?.allBooks) ? offer.allBooks : [];
     const inventoryReady = Boolean(offer?.inventoryReady && primaryBook?.id);
-    const isFreeOffer = Number(primaryBook?.price_in_cents ?? 0) < 1;
+    const isFreeOffer = Number(primaryBook?.price_in_cop ?? 0) < 1;
     const checkoutUrl = offer?.ctaCheckoutUrl ?? (primaryBook?.slug ? `/ebooks/${primaryBook.slug}/checkout` : null);
     const syncCheckoutUrlTemplate = offer?.syncCheckoutUrlTemplate ?? (primaryBook?.slug ? `/ebooks/${primaryBook.slug}/checkout/__REFERENCE__/sync` : null);
     const trilogyBooks = useMemo(() => [primaryBook, ...giftBooks].filter(Boolean).slice(0, 3), [primaryBook, giftBooks]);

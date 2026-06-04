@@ -28,7 +28,7 @@ class Ebook extends Model
         'primary_color',
         'secondary_color',
         'description',
-        'price_in_cents',
+        'price_in_cop',
         'html_content',
         'file_path',
         'file_name',
@@ -44,7 +44,7 @@ class Ebook extends Model
     protected $casts = [
         'offline' => 'boolean',
         'is_featured' => 'boolean',
-        'price_in_cents' => 'integer',
+        'price_in_cop' => 'integer',
         'published_at' => 'datetime',
     ];
 

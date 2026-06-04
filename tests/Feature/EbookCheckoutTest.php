@@ -50,7 +50,7 @@ class EbookCheckoutTest extends TestCase
         Role::create(['name' => 'reader', 'guard_name' => 'web']);
 
         $ebook = $this->makeEbook([
-            'price_in_cents' => 0,
+            'price_in_cop' => 0,
         ]);
 
         $response = $this->postJson(route('ebooks.checkout.create', ['slug' => $ebook->slug]), [
@@ -160,7 +160,7 @@ class EbookCheckoutTest extends TestCase
             'primary_color' => '#1E293B',
             'secondary_color' => '#7CC21F',
             'description' => 'Segundo ebook de prueba',
-            'price_in_cents' => 69000,
+            'price_in_cop' => 69000,
             'html_content' => '<section><h2>Gift</h2></section>',
             'progress' => 0,
             'last_page' => 1,
@@ -226,7 +226,7 @@ class EbookCheckoutTest extends TestCase
             'primary_color' => '#4316FF',
             'secondary_color' => '#7CC21F',
             'description' => 'Descripcion de prueba',
-            'price_in_cents' => 89000,
+            'price_in_cop' => 89000,
             'html_content' => '<section><h2>Test</h2></section>',
             'progress' => 0,
             'last_page' => 1,

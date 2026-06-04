@@ -52,17 +52,17 @@ class EbookCheckoutController extends Controller
             'purchaser_name' => $user?->name ?? $data['name'],
             'purchaser_email' => $user?->email ?? $data['email'],
             'purchaser_phone' => $this->normalizePhone($user?->phone ?? $data['phone']),
-            'amount_in_cents' => $ebook->price_in_cents,
+            'amount_in_cents' => $ebook->price_in_cop,
             'currency' => 'COP',
             'reference' => $this->generateReference($ebook),
             'grant_all_ebooks' => (bool) ($data['grant_all_ebooks'] ?? false),
             'offer_code' => $data['offer_code'] ?? null,
             'wompi_status' => 'PENDING',
-            'checkout_expires_at' => $ebook->price_in_cents > 0 ? now()->addMinutes(30) : null,
+            'checkout_expires_at' => $ebook->price_in_cop > 0 ? now()->addMinutes(30) : null,
             'ip_address' => $request->ip(),
         ]);
 
-        if ($ebook->price_in_cents < 1) {
+        if ($ebook->price_in_cop < 1) {
             $purchase->forceFill([
                 'wompi_status' => 'APPROVED',
                 'wompi_status_message' => 'Acceso gratuito activado automaticamente.',

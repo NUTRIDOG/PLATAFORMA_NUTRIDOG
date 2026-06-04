@@ -65,7 +65,7 @@ export default function Admin({
         primary_color: '#4316FF',
         secondary_color: '#7CC21F',
         description: '',
-        price_in_cents: 49000,
+        price_in_cop: 49000,
         html_content: '',
         progress: 0,
         last_page: 1,
@@ -477,15 +477,15 @@ export default function Admin({
                             <div className="admin-field">
                                 <label>Precio de venta (COP)</label>
                                 <input
-                                    className={fieldClass(ebookForm.errors, 'price_in_cents')}
+                                    className={fieldClass(ebookForm.errors, 'price_in_cop')}
                                     type="number"
                                     min="0"
                                     step="100"
-                                    value={ebookForm.data.price_in_cents}
-                                    onChange={(event) => ebookForm.setData('price_in_cents', event.target.value)}
+                                    value={ebookForm.data.price_in_cop}
+                                    onChange={(event) => ebookForm.setData('price_in_cop', event.target.value)}
                                 />
-                                {ebookForm.errors.price_in_cents ? <small className="auth-error">{ebookForm.errors.price_in_cents}</small> : null}
-                                {!ebookForm.errors.price_in_cents ? <small className="field-help">Usa `0` para acceso gratis o escribe el valor en COP, por ejemplo `49000`.</small> : null}
+                                {ebookForm.errors.price_in_cop ? <small className="auth-error">{ebookForm.errors.price_in_cop}</small> : null}
+                                {!ebookForm.errors.price_in_cop ? <small className="field-help">Usa `0` para acceso gratis o escribe el valor en COP, por ejemplo `49000`.</small> : null}
                             </div>
 
                             <div className="admin-field">

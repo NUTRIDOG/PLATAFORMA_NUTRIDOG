@@ -21,7 +21,7 @@ export default function EbookShare({ book, relatedBooks = [], purchase = null, w
     const [scriptReady, setScriptReady] = useState(Boolean(window.WidgetCheckout));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const isFreeBook = Number(book?.price_in_cents ?? 0) < 1;
+    const isFreeBook = Number(book?.price_in_cop ?? 0) < 1;
 
     useEffect(() => {
         setPurchaseState(purchase);
