@@ -475,16 +475,17 @@ export default function Admin({
                             </div>
 
                             <div className="admin-field">
-                                <label>Precio en centavos (COP)</label>
+                                <label>Precio de venta (COP)</label>
                                 <input
                                     className={fieldClass(ebookForm.errors, 'price_in_cents')}
                                     type="number"
-                                    min="1000"
+                                    min="0"
                                     step="100"
                                     value={ebookForm.data.price_in_cents}
                                     onChange={(event) => ebookForm.setData('price_in_cents', event.target.value)}
                                 />
                                 {ebookForm.errors.price_in_cents ? <small className="auth-error">{ebookForm.errors.price_in_cents}</small> : null}
+                                {!ebookForm.errors.price_in_cents ? <small className="field-help">Usa `0` para acceso gratis o escribe el valor en COP, por ejemplo `49000`.</small> : null}
                             </div>
 
                             <div className="admin-field">
