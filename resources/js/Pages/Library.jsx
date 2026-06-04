@@ -25,7 +25,7 @@ export default function Library({ ebooks = [], featured, pipeline = [], security
                 menuItems={[
                     { href: '/dashboard', label: 'Dashboard' },
                     ...(canManage ? [{ href: '/admin', label: 'Gestionar publicaciones' }] : []),
-                    { href: featured?.slug ? `/reader/${featured.slug}` : '/library', label: 'Abrir destacado', tone: 'primary' },
+                    { href: featured?.slug ? `/reader/${featured.slug}` : '/', label: 'Abrir destacado', tone: 'primary' },
                 ]}
             />
 
@@ -66,7 +66,7 @@ export default function Library({ ebooks = [], featured, pipeline = [], security
                         </div>
 
                         <div className="hero-summary-actions">
-                            <Link className="primary-action" href={`/reader/${featuredBook?.slug ?? 'guia-nutridog-premium'}`}>
+                            <Link className="primary-action" href={featuredBook?.slug ? `/reader/${featuredBook.slug}` : '/'}>
                                 Abrir destacado
                             </Link>
                             <Link className="secondary-action" href="/dashboard">
@@ -85,7 +85,7 @@ export default function Library({ ebooks = [], featured, pipeline = [], security
                     </div>
 
                     <div className="immersive-book-grid">
-                        {library.map((book) => (
+                        {library.length ? library.map((book) => (
                             <article className="immersive-book-card" key={book.id}>
                                 <EbookCover
                                     className="immersive-cover"
@@ -128,7 +128,26 @@ export default function Library({ ebooks = [], featured, pipeline = [], security
                                     </div>
                                 </div>
                             </article>
-                        ))}
+                        )) : (
+                            <article className="immersive-book-card immersive-book-card-empty">
+                                <div className="immersive-book-content">
+                                    <div className="book-topline">
+                                        <span>Sin accesos todavia</span>
+                                    </div>
+                                    <h3>Tu biblioteca aparecera aqui cuando una compra sea aprobada.</h3>
+                                    <p>Completa el checkout de un ebook y el sistema creara tu acceso automaticamente.</p>
+                                    <div className="book-footer">
+                                        <div>
+                                            <strong>NutriDog</strong>
+                                            <span>Embudo activo</span>
+                                        </div>
+                                        <Link className="book-action" href="/">
+                                            Ver catalogo
+                                        </Link>
+                                    </div>
+                                </div>
+                            </article>
+                        )}
                     </div>
                 </article>
 

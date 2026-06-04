@@ -65,6 +65,7 @@ export default function Admin({
         primary_color: '#4316FF',
         secondary_color: '#7CC21F',
         description: '',
+        price_in_cents: 49000,
         html_content: '',
         progress: 0,
         last_page: 1,
@@ -471,6 +472,19 @@ export default function Admin({
                                     value={ebookForm.data.description}
                                     onChange={(event) => ebookForm.setData('description', event.target.value)}
                                 />
+                            </div>
+
+                            <div className="admin-field">
+                                <label>Precio en centavos (COP)</label>
+                                <input
+                                    className={fieldClass(ebookForm.errors, 'price_in_cents')}
+                                    type="number"
+                                    min="1000"
+                                    step="100"
+                                    value={ebookForm.data.price_in_cents}
+                                    onChange={(event) => ebookForm.setData('price_in_cents', event.target.value)}
+                                />
+                                {ebookForm.errors.price_in_cents ? <small className="auth-error">{ebookForm.errors.price_in_cents}</small> : null}
                             </div>
 
                             <div className="admin-field">

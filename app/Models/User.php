@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Notifications\Auth\ResetPasswordNotification;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,7 +24,9 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
+        'is_auto_generated',
     ];
 
     /**
@@ -48,6 +51,18 @@ class User extends Authenticatable
     public function ebookProgressEntries(): HasMany
     {
         return $this->hasMany(EbookUserProgress::class);
+    }
+
+    public function ebookPurchases(): HasMany
+    {
+        return $this->hasMany(EbookPurchase::class);
+    }
+
+    public function ebooks(): BelongsToMany
+    {
+        return $this->belongsToMany(Ebook::class, 'ebook_user')
+            ->withPivot(['ebook_purchase_id', 'granted_at'])
+            ->withTimestamps();
     }
 
     public function sendPasswordResetNotification($token): void

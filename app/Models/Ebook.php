@@ -28,6 +28,7 @@ class Ebook extends Model
         'primary_color',
         'secondary_color',
         'description',
+        'price_in_cents',
         'html_content',
         'file_path',
         'file_name',
@@ -43,6 +44,7 @@ class Ebook extends Model
     protected $casts = [
         'offline' => 'boolean',
         'is_featured' => 'boolean',
+        'price_in_cents' => 'integer',
         'published_at' => 'datetime',
     ];
 
@@ -60,5 +62,17 @@ class Ebook extends Model
     {
         return $this->belongsToMany(EbookCombo::class, 'combo_ebook')
             ->withPivot('sort_order');
+    }
+
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(EbookPurchase::class);
+    }
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ebook_user')
+            ->withPivot(['ebook_purchase_id', 'granted_at'])
+            ->withTimestamps();
     }
 }

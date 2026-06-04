@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\EbookCheckoutController;
 use App\Http\Controllers\PlatformController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -7,10 +8,14 @@ use Inertia\Inertia;
 
 Route::get('/', [PlatformController::class, 'landing'])->name('landing.index');
 Route::get('/ebooks/{slug}', [PlatformController::class, 'ebookShare'])->name('ebooks.share');
+Route::get('/ofertas/compra-1-llevate-todos', [PlatformController::class, 'bundleOffer'])->name('offers.bundle');
+Route::post('/ebooks/{slug}/checkout', [EbookCheckoutController::class, 'create'])->name('ebooks.checkout.create');
+Route::post('/ebooks/{slug}/checkout/{reference}/sync', [EbookCheckoutController::class, 'sync'])->name('ebooks.checkout.sync');
+Route::post('/webhooks/wompi', [EbookCheckoutController::class, 'webhook'])->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])->name('webhooks.wompi');
 Route::get('/app', function (Request $request) {
     return redirect()->route($request->user() ? 'dashboard.index' : 'landing.index');
 })->name('app.legacy');
-Route::get('/reader-source/{ebook}', [PlatformController::class, 'streamPdf'])->middleware('signed')->name('reader.pdf');
+Route::get('/reader-source/{ebook}', [PlatformController::class, 'streamPdf'])->middleware(['auth', 'signed'])->name('reader.pdf');
 Route::get('/ebook-cover/{ebook}', [PlatformController::class, 'streamCover'])->name('ebooks.cover');
 require __DIR__ . '/auth.php';
 

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\EbookCheckoutController;
 use App\Models\Ebook;
 use App\Models\EbookCombo;
+use App\Models\EbookPurchase;
 use App\Models\EbookUserProgress;
 use App\Models\User;
 use App\Services\PdfTextExtractor;
@@ -23,7 +25,8 @@ use Spatie\Permission\Models\Role;
 class PlatformController extends Controller
 {
     public function __construct(
-        protected PdfTextExtractor $pdfTextExtractor
+        protected PdfTextExtractor $pdfTextExtractor,
+        protected EbookCheckoutController $ebookCheckoutController
     ) {
     }
 
@@ -45,7 +48,7 @@ class PlatformController extends Controller
 
     public function library(): Response
     {
-        $data = $this->platformData();
+        $data = $this->platformData(restrictToOwned: true);
         $data['seo'] = $this->privateSeo('Biblioteca NutriDog', 'Biblioteca privada para acceder a infoproductos de mascotas con lectura protegida.');
 
         return Inertia::render('Library', $data);
@@ -66,17 +69,80 @@ class PlatformController extends Controller
             ->get()
             ->map(fn (Ebook $item) => $this->transformEbook($item, request()->user()?->id))
             ->values();
+        $purchase = $this->resolvePurchaseForShare($ebook);
 
         return Inertia::render('EbookShare', [
             'book' => $selected,
             'relatedBooks' => $related,
+            'purchase' => $purchase ? $this->ebookCheckoutController->purchasePayload($purchase) : null,
+            'wompi' => [
+                'enabled' => filled(config('services.wompi.public_key')) && filled(config('services.wompi.integrity_secret')),
+            ],
             'seo' => $this->ebookSeo($selected),
+        ]);
+    }
+
+    public function bundleOffer(): Response
+    {
+        $ebooks = Ebook::query()
+            ->with('progressEntries')
+            ->where('status', 'Activo')
+            ->latest()
+            ->get();
+
+        if ($ebooks->isEmpty()) {
+            $data = $this->platformData();
+
+            return Inertia::render('OfferBundle', [
+                'offer' => [
+                    'headline' => 'Compra 1 ebook y recibe toda la biblioteca',
+                    'summary' => 'Activa esta oferta especial para desbloquear todos los ebooks de por vida.',
+                    'primaryBook' => $data['featured'],
+                    'giftBooks' => [],
+                    'allBooks' => $data['ebooks'],
+                    'inventoryReady' => false,
+                    'ctaCheckoutUrl' => null,
+                    'syncCheckoutUrlTemplate' => null,
+                    'offerCode' => 'bundle-lifetime',
+                ],
+                'purchase' => null,
+                'wompi' => [
+                    'enabled' => filled(config('services.wompi.public_key')) && filled(config('services.wompi.integrity_secret')),
+                ],
+                'seo' => $this->offerSeo($data['featured']),
+            ]);
+        }
+
+        $primary = $ebooks->firstWhere('is_featured', true) ?? $ebooks->first();
+        $primaryBook = $this->transformEbook($primary, request()->user()?->id);
+        $allBooks = $ebooks->map(fn (Ebook $ebook) => $this->transformEbook($ebook, request()->user()?->id))->values();
+        $giftBooks = $allBooks->where('id', '!=', $primaryBook['id'])->values();
+        $purchase = $this->resolvePurchaseForShare($primary);
+
+        return Inertia::render('OfferBundle', [
+            'offer' => [
+                'headline' => 'Compra 1 ebook y te regalamos todos los demas',
+                'summary' => 'Pagas solo ' . $primaryBook['price_display'] . ' por ' . $primaryBook['title'] . ' y desbloqueas el resto de la biblioteca para siempre.',
+                'primaryBook' => $primaryBook,
+                'giftBooks' => $giftBooks,
+                'allBooks' => $allBooks,
+                'inventoryReady' => true,
+                'ctaCheckoutUrl' => route('ebooks.checkout.create', ['slug' => $primaryBook['slug']]),
+                'syncCheckoutUrlTemplate' => route('ebooks.checkout.sync', ['slug' => $primaryBook['slug'], 'reference' => '__REFERENCE__']),
+                'offerCode' => 'bundle-lifetime',
+            ],
+            'purchase' => $purchase ? $this->ebookCheckoutController->purchasePayload($purchase) : null,
+            'wompi' => [
+                'enabled' => filled(config('services.wompi.public_key')) && filled(config('services.wompi.integrity_secret')),
+            ],
+            'seo' => $this->offerSeo($primaryBook),
         ]);
     }
 
     public function reader(string $slug): Response
     {
         $ebook = Ebook::query()->where('slug', $slug)->firstOrFail();
+        abort_unless($this->canAccessEbook($ebook, request()->user()), 403);
         $data = $this->platformData($ebook);
         $data['seo'] = $this->privateSeo(
             $ebook->title,
@@ -97,6 +163,7 @@ class PlatformController extends Controller
     public function streamPdf(Request $request, Ebook $ebook)
     {
         abort_unless($request->hasValidSignature(), 403);
+        abort_unless($this->canAccessEbook($ebook, $request->user()), 403);
         abort_unless($ebook->source_type === 'pdf' && $ebook->file_path, 404);
         abort_unless(Storage::disk('local')->exists($ebook->file_path), 404);
 
@@ -121,6 +188,8 @@ class PlatformController extends Controller
 
     public function updateReadingProgress(Request $request, Ebook $ebook)
     {
+        abort_unless($this->canAccessEbook($ebook, $request->user()), 403);
+
         $data = $request->validate([
             'progress' => ['required', 'integer', 'min:0', 'max:100'],
             'last_page' => ['required', 'integer', 'min:1'],
@@ -289,6 +358,7 @@ class PlatformController extends Controller
             'primary_color' => $data['primary_color'],
             'secondary_color' => $data['secondary_color'],
             'description' => $data['description'],
+            'price_in_cents' => (int) $data['price_in_cents'],
             'html_content' => $htmlContent,
             'file_path' => $filePath,
             'file_name' => $fileName,
@@ -434,6 +504,7 @@ class PlatformController extends Controller
             'primary_color' => ['required', 'string', 'size:7'],
             'secondary_color' => ['required', 'string', 'size:7'],
             'description' => ['required', 'string'],
+            'price_in_cents' => ['required', 'integer', 'min:1000'],
             'html_content' => ['nullable', 'string'],
             'html_file' => ['nullable', 'file', 'mimes:html,htm,txt'],
             'pdf_file' => ['nullable', 'file', 'mimes:pdf', 'max:51200'],
@@ -498,12 +569,18 @@ class PlatformController extends Controller
         ]);
     }
 
-    protected function platformData(?Ebook $selected = null): array
+    protected function platformData(?Ebook $selected = null, bool $restrictToOwned = false): array
     {
-        $ebooks = Ebook::query()
+        $ebooksQuery = Ebook::query()
             ->with('progressEntries')
-            ->latest()
-            ->get();
+            ->latest();
+
+        if ($restrictToOwned && ! $this->canManage()) {
+            $ownedIds = request()->user()?->ebooks()->pluck('ebooks.id') ?? collect();
+            $ebooksQuery->whereIn('id', $ownedIds);
+        }
+
+        $ebooks = $ebooksQuery->get();
         $combos = EbookCombo::query()->with('ebooks')->latest()->get();
         $users = User::query()->with('roles', 'permissions')->latest()->get();
         $roles = Role::query()->orderBy('name')->pluck('name');
@@ -586,10 +663,13 @@ class PlatformController extends Controller
             'slug' => $ebook->slug,
             'author' => $ebook->author,
             'description' => $ebook->description,
+            'price_in_cents' => (int) ($ebook->price_in_cents ?? 0),
+            'price_display' => $this->formatPrice((int) ($ebook->price_in_cents ?? 0)),
             'cover' => $ebook->cover,
             'cover_image_url' => $this->coverImageUrlForEbook($ebook),
             'category' => $ebook->category,
             'access' => $ebook->access,
+            'has_access' => $userId ? $this->userOwnsEbook($userId, (int) $ebook->id) : false,
             'progress' => $progress,
             'last_page' => $lastPage,
             'total_pages' => $ebook->total_pages,
@@ -627,6 +707,7 @@ class PlatformController extends Controller
             'primary_color' => $ebook->primary_color,
             'secondary_color' => $ebook->secondary_color,
             'description' => $ebook->description,
+            'price_in_cents' => (int) $ebook->price_in_cents,
             'html_content' => $ebook->html_content,
             'progress' => $ebook->progress,
             'last_page' => $ebook->last_page,
@@ -815,6 +896,7 @@ class PlatformController extends Controller
             ['label' => 'Copiar o seleccionar', 'state' => 'Bloqueado'],
             ['label' => 'Visibilidad fuera de foco', 'state' => 'Difuminado'],
             ['label' => 'Marca de agua', 'state' => 'Dinamica'],
+            ['label' => 'Checkout Wompi', 'state' => filled(config('services.wompi.public_key')) ? 'Listo' : 'Config pendiente'],
         ];
     }
 
@@ -833,6 +915,7 @@ class PlatformController extends Controller
             'primary_color' => '#4316FF',
             'secondary_color' => '#7CC21F',
             'description' => '',
+            'price_in_cents' => 49000,
             'html_content' => '<section><h2>Nuevo ebook</h2><p>Escribe aqui tu contenido HTML.</p></section>',
             'progress' => 0,
             'last_page' => 1,
@@ -891,6 +974,8 @@ class PlatformController extends Controller
                 'slug' => 'guia-nutridog-premium',
                 'author' => 'Equipo NutriDog',
                 'description' => 'Plan maestro de alimentacion, salud digestiva y rutinas para perros de alto rendimiento.',
+                'price_in_cents' => 89000,
+                'price_display' => $this->formatPrice(89000),
                 'cover' => 'ND',
                 'cover_image_url' => null,
                 'category' => 'Nutricion avanzada',
@@ -906,17 +991,18 @@ class PlatformController extends Controller
                 'source_type' => 'html',
                 'protection' => 'Blindaje total',
                 'is_featured' => true,
+                'has_access' => false,
                 'share_url' => route('ebooks.share', ['slug' => 'guia-nutridog-premium']),
                 'reader_url' => route('reader.show', ['slug' => 'guia-nutridog-premium']),
             ],
         ];
     }
 
-    protected function landingSeo(?array $featured = null): array
+    protected function landingSeo(array|object|null $featured = null): array
     {
         $title = 'NutriDog | Plataforma para vender infoproductos de mascotas';
         $description = 'Presenta, protege y comparte ebooks y guías digitales para el cuidado de mascotas con una landing profesional, biblioteca privada y lector seguro.';
-        $image = $this->absoluteUrl($featured['cover_image_url'] ?? '/images/ebooks.webp');
+        $image = $this->absoluteUrl(data_get($featured, 'cover_image_url', '/images/ebooks.webp'));
 
         return $this->seoPayload(
             title: $title,
@@ -940,6 +1026,34 @@ class PlatformController extends Controller
                     'name' => 'NutriDog',
                     'url' => route('landing.index'),
                     'logo' => $this->absoluteUrl('/images/logo.webp'),
+                ],
+            ],
+        );
+    }
+
+    protected function offerSeo(array|object|null $primaryBook = null): array
+    {
+        $title = 'Oferta NutriDog | Compra 1 ebook y recibe toda la biblioteca';
+        $description = 'Landing publica de oferta: compras un ebook principal y desbloqueas el resto de la biblioteca digital con acceso de por vida.';
+        $image = $this->absoluteUrl(data_get($primaryBook, 'cover_image_url', '/images/ebooks.webp'));
+
+        return $this->seoPayload(
+            title: $title,
+            description: $description,
+            canonical: route('offers.bundle'),
+            image: $image,
+            imageAlt: 'Oferta publica de NutriDog',
+            type: 'website',
+            robots: 'index,follow',
+            structuredData: [
+                [
+                    '@context' => 'https://schema.org',
+                    '@type' => 'Offer',
+                    'name' => $title,
+                    'description' => $description,
+                    'url' => route('offers.bundle'),
+                    'priceCurrency' => 'COP',
+                    'category' => 'Ebooks digitales',
                 ],
             ],
         );
@@ -1059,5 +1173,74 @@ class PlatformController extends Controller
         }
 
         return null;
+    }
+
+    protected function canManage(?User $user = null): bool
+    {
+        $user ??= request()->user();
+
+        return (bool) $user?->hasAnyRole(['admin', 'editor']);
+    }
+
+    protected function canAccessEbook(Ebook $ebook, ?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->canManage($user)) {
+            return true;
+        }
+
+        return $user->ebooks()->whereKey($ebook->id)->exists();
+    }
+
+    protected function userOwnsEbook(int $userId, int $ebookId): bool
+    {
+        $user = request()->user();
+
+        if ($user && $user->id === $userId && $this->canManage($user)) {
+            return true;
+        }
+
+        return User::query()
+            ->whereKey($userId)
+            ->whereHas('ebooks', fn ($query) => $query->whereKey($ebookId))
+            ->exists();
+    }
+
+    protected function resolvePurchaseForShare(Ebook $ebook): ?EbookPurchase
+    {
+        $reference = request()->query('purchase');
+
+        if (! $reference) {
+            return null;
+        }
+
+        $purchase = EbookPurchase::query()
+            ->where('ebook_id', $ebook->id)
+            ->where('reference', $reference)
+            ->first();
+
+        if (! $purchase) {
+            return null;
+        }
+
+        $transactionId = request()->query('id');
+
+        if ($transactionId) {
+            try {
+                $purchase = $this->ebookCheckoutController->syncPurchaseByTransactionId($purchase, (string) $transactionId);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        return $purchase;
+    }
+
+    protected function formatPrice(int $amountInCents): string
+    {
+        return '$' . number_format($amountInCents / 100, 0, ',', '.');
     }
 }
