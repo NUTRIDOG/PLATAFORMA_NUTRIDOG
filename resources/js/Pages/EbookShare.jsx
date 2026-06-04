@@ -21,6 +21,7 @@ export default function EbookShare({ book, relatedBooks = [], purchase = null, w
     const [scriptReady, setScriptReady] = useState(Boolean(window.WidgetCheckout));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const isFreeBook = Number(book?.price_in_cents ?? 0) < 1;
 
     useEffect(() => {
         setPurchaseState(purchase);
@@ -47,7 +48,7 @@ export default function EbookShare({ book, relatedBooks = [], purchase = null, w
 
     const hasAccess = Boolean(book?.has_access);
     const isApproved = purchaseState?.status === 'APPROVED';
-    const canBuy = wompi?.enabled && !hasAccess;
+    const canBuy = !hasAccess && (isFreeBook || wompi?.enabled);
 
     const updateField = (key, value) => {
         setForm((current) => ({ ...current, [key]: value }));
@@ -78,9 +79,14 @@ export default function EbookShare({ book, relatedBooks = [], purchase = null, w
 
         try {
             const response = await window.axios.post(`/ebooks/${book.slug}/checkout`, form);
-            const { checkout, purchase: createdPurchase } = response.data;
+            const { checkout, purchase: createdPurchase, direct_access: directAccess, message } = response.data;
 
             setPurchaseState(createdPurchase);
+
+            if (directAccess) {
+                toast.success(message ?? 'Acceso gratuito activado. Revisa tu correo para entrar.');
+                return;
+            }
 
             if (!window.WidgetCheckout) {
                 throw new Error('widget_not_ready');
@@ -162,7 +168,7 @@ export default function EbookShare({ book, relatedBooks = [], purchase = null, w
                         <div className="funnel-price-row">
                             <div>
                                 <strong>{book.price_display}</strong>
-                                <span>Pago unico en COP</span>
+                                <span>{isFreeBook ? 'Acceso gratuito' : 'Pago unico en COP'}</span>
                             </div>
                             <div className="funnel-price-chip">
                                 <FiShield aria-hidden="true" />
@@ -218,7 +224,7 @@ export default function EbookShare({ book, relatedBooks = [], purchase = null, w
                             </div>
                             <div className="funnel-benefit">
                                 <strong>2. Checkout con Wompi</strong>
-                                <p>Abres el widget sin salir del sitio y Wompi procesa el medio de pago disponible.</p>
+                                <p>{isFreeBook ? 'Si el ebook es gratis, activamos el acceso de inmediato sin pasar por pasarela.' : 'Abres el widget sin salir del sitio y Wompi procesa el medio de pago disponible.'}</p>
                             </div>
                             <div className="funnel-benefit">
                                 <strong>3. Usuario creado automaticamente</strong>
@@ -310,21 +316,25 @@ export default function EbookShare({ book, relatedBooks = [], purchase = null, w
                                 <button
                                     className="primary-action checkout-submit"
                                     type="button"
-                                    disabled={!canBuy || !scriptReady || isSubmitting}
+                                    disabled={!canBuy || (!isFreeBook && !scriptReady) || isSubmitting}
                                     onClick={openCheckout}
                                 >
                                     <FiCreditCard aria-hidden="true" />
                                     <span>
                                         {isSubmitting
-                                            ? 'Preparando checkout...'
-                                            : !wompi?.enabled
+                                            ? (isFreeBook ? 'Activando acceso...' : 'Preparando checkout...')
+                                            : isFreeBook
+                                              ? 'Obtener gratis'
+                                              : !wompi?.enabled
                                               ? 'Configura Wompi para vender'
                                               : 'Pagar con Wompi'}
                                     </span>
                                 </button>
 
                                 <p className="checkout-help">
-                                    Al aprobarse el pago, se crea tu usuario, se asigna el ebook y recibes credenciales por correo.
+                                    {isFreeBook
+                                        ? 'Al enviar el formulario, se crea tu usuario, se asigna el ebook y recibes credenciales por correo.'
+                                        : 'Al aprobarse el pago, se crea tu usuario, se asigna el ebook y recibes credenciales por correo.'}
                                 </p>
                             </>
                         )}

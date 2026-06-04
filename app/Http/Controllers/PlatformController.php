@@ -504,7 +504,7 @@ class PlatformController extends Controller
             'primary_color' => ['required', 'string', 'size:7'],
             'secondary_color' => ['required', 'string', 'size:7'],
             'description' => ['required', 'string'],
-            'price_in_cents' => ['required', 'integer', 'min:1000'],
+            'price_in_cents' => ['required', 'integer', 'min:0'],
             'html_content' => ['nullable', 'string'],
             'html_file' => ['nullable', 'file', 'mimes:html,htm,txt'],
             'pdf_file' => ['nullable', 'file', 'mimes:pdf', 'max:51200'],

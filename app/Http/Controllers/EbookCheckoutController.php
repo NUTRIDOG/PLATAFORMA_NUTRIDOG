@@ -32,9 +32,6 @@ class EbookCheckoutController extends Controller
             'offer_code' => ['nullable', 'string', 'max:100'],
         ]);
 
-        abort_if($ebook->price_in_cents < 1, 422, 'Este ebook no tiene un precio configurado para venta.');
-        abort_unless(filled(config('services.wompi.public_key')) && filled(config('services.wompi.integrity_secret')), 422, 'Wompi no esta configurado todavia.');
-
         $user = $request->user();
 
         if ($user && $user->ebooks()->whereKey($ebook->id)->exists()) {
@@ -61,9 +58,27 @@ class EbookCheckoutController extends Controller
             'grant_all_ebooks' => (bool) ($data['grant_all_ebooks'] ?? false),
             'offer_code' => $data['offer_code'] ?? null,
             'wompi_status' => 'PENDING',
-            'checkout_expires_at' => now()->addMinutes(30),
+            'checkout_expires_at' => $ebook->price_in_cents > 0 ? now()->addMinutes(30) : null,
             'ip_address' => $request->ip(),
         ]);
+
+        if ($ebook->price_in_cents < 1) {
+            $purchase->forceFill([
+                'wompi_status' => 'APPROVED',
+                'wompi_status_message' => 'Acceso gratuito activado automaticamente.',
+                'approved_at' => now(),
+            ])->save();
+
+            $this->fulfillPurchase($purchase);
+
+            return response()->json([
+                'purchase' => $this->purchasePayload($purchase->fresh(['user'])),
+                'direct_access' => true,
+                'message' => 'Acceso gratuito activado. Revisa tu correo para entrar a la biblioteca.',
+            ]);
+        }
+
+        abort_unless(filled(config('services.wompi.public_key')) && filled(config('services.wompi.integrity_secret')), 422, 'Wompi no esta configurado todavia.');
 
         $redirectUrl = $purchase->grant_all_ebooks
             ? route('offers.bundle')

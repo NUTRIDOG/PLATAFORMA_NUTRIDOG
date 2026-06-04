@@ -15,6 +15,7 @@ export default function OfferBundle({ offer, purchase = null, wompi = {}, seo = 
     const giftBooks = Array.isArray(offer?.giftBooks) ? offer.giftBooks : [];
     const allBooks = Array.isArray(offer?.allBooks) ? offer.allBooks : [];
     const inventoryReady = Boolean(offer?.inventoryReady && primaryBook?.id);
+    const isFreeOffer = Number(primaryBook?.price_in_cents ?? 0) < 1;
     const checkoutUrl = offer?.ctaCheckoutUrl ?? (primaryBook?.slug ? `/ebooks/${primaryBook.slug}/checkout` : null);
     const syncCheckoutUrlTemplate = offer?.syncCheckoutUrlTemplate ?? (primaryBook?.slug ? `/ebooks/${primaryBook.slug}/checkout/__REFERENCE__/sync` : null);
     const trilogyBooks = useMemo(() => [primaryBook, ...giftBooks].filter(Boolean).slice(0, 3), [primaryBook, giftBooks]);
@@ -143,8 +144,13 @@ export default function OfferBundle({ offer, purchase = null, wompi = {}, seo = 
                 offer_code: offer.offerCode,
             });
 
-            const { checkout, purchase: createdPurchase } = response.data;
+            const { checkout, purchase: createdPurchase, direct_access: directAccess, message } = response.data;
             setPurchaseState(createdPurchase);
+
+            if (directAccess) {
+                toast.success(message ?? 'Acceso gratuito activado. Revisa tu correo para entrar a la biblioteca.');
+                return;
+            }
 
             const checkoutInstance = new window.WidgetCheckout({
                 ...checkout,
@@ -217,7 +223,7 @@ export default function OfferBundle({ offer, purchase = null, wompi = {}, seo = 
                                 <div className="offer-inline-price">
                                     <small>Hoy pagas</small>
                                     <strong>{primaryBook?.price_display}</strong>
-                                    <span>Libro principal + bonos + acceso vitalicio</span>
+                                    <span>{isFreeOffer ? 'Acceso gratis + bonos + acceso vitalicio' : 'Libro principal + bonos + acceso vitalicio'}</span>
                                 </div>
 
                                 <a className="primary-action offer-main-cta" href="#bundle-checkout">
@@ -425,7 +431,7 @@ export default function OfferBundle({ offer, purchase = null, wompi = {}, seo = 
                                     <button
                                         className="primary-action checkout-submit offer-main-cta"
                                         type="button"
-                                        disabled={!inventoryReady || !wompi?.enabled || !scriptReady || isSubmitting}
+                                        disabled={!inventoryReady || (!isFreeOffer && !wompi?.enabled) || (!isFreeOffer && !scriptReady) || isSubmitting}
                                         onClick={openCheckout}
                                     >
                                         <FiCreditCard aria-hidden="true" />
@@ -433,13 +439,15 @@ export default function OfferBundle({ offer, purchase = null, wompi = {}, seo = 
                                             {!inventoryReady
                                                 ? 'Oferta en preparacion'
                                                 : isSubmitting
-                                                    ? 'Preparando checkout...'
-                                                    : 'Obtener oferta'}
+                                                    ? (isFreeOffer ? 'Activando acceso...' : 'Preparando checkout...')
+                                                    : isFreeOffer
+                                                        ? 'Obtener gratis'
+                                                        : 'Obtener oferta'}
                                         </span>
                                     </button>
 
                                     <div className="offer-checkout-confidence-row">
-                                        <div><FiShield aria-hidden="true" /> Pago seguro con Wompi</div>
+                                        <div><FiShield aria-hidden="true" /> {isFreeOffer ? 'Entrega automatica segura' : 'Pago seguro con Wompi'}</div>
                                         <div><FiStar aria-hidden="true" /> Acceso de por vida</div>
                                         <div><FiGift aria-hidden="true" /> Bonos incluidos al instante</div>
                                     </div>

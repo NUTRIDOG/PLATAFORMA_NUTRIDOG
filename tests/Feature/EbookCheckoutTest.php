@@ -43,6 +43,44 @@ class EbookCheckoutTest extends TestCase
         ]);
     }
 
+    public function test_guest_can_claim_a_free_ebook_without_wompi(): void
+    {
+        Mail::fake();
+
+        Role::create(['name' => 'reader', 'guard_name' => 'web']);
+
+        $ebook = $this->makeEbook([
+            'price_in_cents' => 0,
+        ]);
+
+        $response = $this->postJson(route('ebooks.checkout.create', ['slug' => $ebook->slug]), [
+            'name' => 'Ana Gratis',
+            'email' => 'ana-gratis@example.com',
+            'phone' => '3001234567',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('direct_access', true)
+            ->assertJsonPath('purchase.status', 'APPROVED');
+
+        $user = User::query()->where('email', 'ana-gratis@example.com')->first();
+
+        $this->assertNotNull($user);
+        $this->assertTrue($user->hasRole('reader'));
+        $this->assertDatabaseHas('ebook_user', [
+            'ebook_id' => $ebook->id,
+            'user_id' => $user->id,
+        ]);
+        $this->assertDatabaseHas('ebook_purchases', [
+            'ebook_id' => $ebook->id,
+            'user_id' => $user->id,
+            'amount_in_cents' => 0,
+            'wompi_status' => 'APPROVED',
+        ]);
+
+        Mail::assertSent(EbookPurchaseAccessMail::class, fn (EbookPurchaseAccessMail $mail) => $mail->hasTo('ana-gratis@example.com'));
+    }
+
     public function test_approved_transaction_creates_reader_user_grants_access_and_sends_mail(): void
     {
         Mail::fake();
@@ -172,9 +210,9 @@ class EbookCheckoutTest extends TestCase
         ]);
     }
 
-    protected function makeEbook(): Ebook
+    protected function makeEbook(array $overrides = []): Ebook
     {
-        return Ebook::create([
+        return Ebook::create(array_merge([
             'title' => 'Guia NutriDog Premium',
             'slug' => 'guia-nutridog-premium',
             'author' => 'Equipo NutriDog',
@@ -196,6 +234,6 @@ class EbookCheckoutTest extends TestCase
             'offline' => false,
             'is_featured' => true,
             'published_at' => now(),
-        ]);
+        ], $overrides));
     }
 }
