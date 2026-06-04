@@ -1241,6 +1241,6 @@ class PlatformController extends Controller
 
     protected function formatPrice(int $amountInCents): string
     {
-        return '$' . number_format($amountInCents / 100, 0, ',', '.');
+        return '$' . number_format($amountInCents, 0, ',', '.');
     }
 }
