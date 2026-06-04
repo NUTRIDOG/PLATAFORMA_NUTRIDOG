@@ -52,7 +52,7 @@ class EbookCheckoutController extends Controller
             'purchaser_name' => $user?->name ?? $data['name'],
             'purchaser_email' => $user?->email ?? $data['email'],
             'purchaser_phone' => $this->normalizePhone($user?->phone ?? $data['phone']),
-            'amount_in_cents' => $ebook->price_in_cop,
+            'amount_in_cents' => $this->wompiAmountFromCop($ebook->price_in_cop),
             'currency' => 'COP',
             'reference' => $this->generateReference($ebook),
             'grant_all_ebooks' => (bool) ($data['grant_all_ebooks'] ?? false),
@@ -291,5 +291,10 @@ class EbookCheckoutController extends Controller
         }
 
         return $normalized;
+    }
+
+    protected function wompiAmountFromCop(int $priceInCop): int
+    {
+        return max($priceInCop, 0) * 100;
     }
 }

@@ -34,7 +34,7 @@ class EbookCheckoutTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('checkout.publicKey', 'pub_test_demo')
-            ->assertJsonPath('checkout.amountInCents', 89000);
+            ->assertJsonPath('checkout.amountInCents', 8900000);
 
         $this->assertDatabaseHas('ebook_purchases', [
             'ebook_id' => $ebook->id,
@@ -97,7 +97,7 @@ class EbookCheckoutTest extends TestCase
             'purchaser_name' => 'Ana Gomez',
             'purchaser_email' => 'ana@example.com',
             'purchaser_phone' => '3001234567',
-            'amount_in_cents' => 89000,
+            'amount_in_cents' => 8900000,
             'currency' => 'COP',
             'reference' => 'NUTRI-TEST-001',
             'wompi_status' => 'PENDING',
@@ -110,7 +110,7 @@ class EbookCheckoutTest extends TestCase
                     'reference' => 'NUTRI-TEST-001',
                     'status' => 'APPROVED',
                     'status_message' => 'Pago aprobado',
-                    'amount_in_cents' => 89000,
+                    'amount_in_cents' => 8900000,
                     'currency' => 'COP',
                 ],
             ], 200),
@@ -175,7 +175,7 @@ class EbookCheckoutTest extends TestCase
             'purchaser_name' => 'Ana Gomez',
             'purchaser_email' => 'ana-bundle@example.com',
             'purchaser_phone' => '3001234567',
-            'amount_in_cents' => 89000,
+            'amount_in_cents' => 8900000,
             'currency' => 'COP',
             'reference' => 'NUTRI-BUNDLE-001',
             'grant_all_ebooks' => true,
@@ -190,7 +190,7 @@ class EbookCheckoutTest extends TestCase
                     'reference' => 'NUTRI-BUNDLE-001',
                     'status' => 'APPROVED',
                     'status_message' => 'Pago aprobado',
-                    'amount_in_cents' => 89000,
+                    'amount_in_cents' => 8900000,
                     'currency' => 'COP',
                 ],
             ], 200),
